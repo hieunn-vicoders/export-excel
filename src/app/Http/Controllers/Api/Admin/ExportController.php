@@ -5,13 +5,13 @@ namespace VCComponent\Laravel\Export\Http\Controllers\Api\Admin;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use VCComponent\Laravel\Vicoders\Core\Controllers\ApiController;
-use VCComponent\Laravel\Export\Validators\ExportValidator;
-use VCComponent\Laravel\Export\Repositories\ExportsQueryRepository;
-use VCComponent\Laravel\Export\Exports\Export;
-use Maatwebsite\Excel\Facades\Excel;
-use VCComponent\Laravel\Vicoders\Core\Exceptions\PermissionDeniedException;
 use Illuminate\Support\Facades\Gate;
+use Maatwebsite\Excel\Facades\Excel;
+use VCComponent\Laravel\Export\Exports\Export;
+use VCComponent\Laravel\Export\Repositories\ExportsQueryRepository;
+use VCComponent\Laravel\Export\Validators\ExportValidator;
+use VCComponent\Laravel\Vicoders\Core\Controllers\ApiController;
+use VCComponent\Laravel\Vicoders\Core\Exceptions\PermissionDeniedException;
 
 class ExportController extends ApiController
 {
@@ -20,7 +20,7 @@ class ExportController extends ApiController
 
     public function __construct(ExportValidator $validator, ExportsQueryRepository $repository)
     {
-        $this->repository  = $repository;
+        $this->repository = $repository;
         $this->entity = $repository->getEntity();
         $this->validator = $validator;
         if (config('export_query.auth_middleware.admin.middleware') !== '') {
@@ -68,9 +68,12 @@ class ExportController extends ApiController
         } else {
             $trans += [":position_condition" => "<>"];
         }
-
         foreach ($data_request as $item => $val) {
-            $trans[":" . $item] = $val;
+            if ($val != null) {
+                $trans[":" . $item] = $val;
+            } else {
+                $trans[":" . $item] = "''";
+            }
         }
 
         $tring_query = strtr($export_query->query, $trans);
@@ -78,7 +81,7 @@ class ExportController extends ApiController
         try {
             $query = DB::select($tring_query);
         } catch (Exception $e) {
-            throw new Exception( $e);
+            throw new Exception($e);
         }
         if ($query == null) {
             throw new Exception("Dữ liệu không tồn tại");
