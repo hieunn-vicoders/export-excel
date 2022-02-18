@@ -10,5 +10,11 @@ class ExportValidator extends AbstractValidator
         'RULE_EXPORT' => [
             'extension' => ['required', 'regex:/(^xlsx$)|(^csv$)/'],
         ],
+        'RULE_EXPORT' => [
+            'slug' => ['required', 'exists:contact_forms'],
+            'from_date' => ['date'],
+            'to_date' => ['date', 'after_or_equal:from_date'],
+            'status' => ['numeric'],
+        ],
     ];
 }

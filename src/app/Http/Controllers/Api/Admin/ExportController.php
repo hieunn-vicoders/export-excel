@@ -30,7 +30,7 @@ class ExportController extends ApiController
             );
         }
     }
-    public function export($slug, Request $request)
+    private function authorize()
     {
         if (config('export_query.auth_middleware.admin.middleware') !== '') {
             $user = $this->getAuthenticatedUser();
@@ -38,32 +38,40 @@ class ExportController extends ApiController
                 throw new PermissionDeniedException();
             }
         }
+    }
+
+    public function export($slug, Request $request)
+    {
+        $this->authorize();
+
+        $this->validator->isValid($request->all(), 'RULE_EXPORT');
+
         $export_query = $this->repository->findBySlug($slug);
-        if ($export_query == null) {
+        if ($export_query === null) {
             throw new Exception("Dữ liệu không tồn tại");
         }
         $data_request = $request->all();
 
         $trans = [];
-        if ($request->has('status') && $request->status != '') {
+        if ($request->has('status') && $request->status !== '') {
             $trans += [":status_condition" => "="];
         } else {
             $trans += [":status_condition" => "<>"];
         }
 
-        if ($request->has('from_date') && $request->from_date != '') {
+        if ($request->has('from_date') && $request->from_date !== '') {
             $trans += [":from_date_condition" => ">="];
         } else {
             $trans += [":from_date_condition" => "<>"];
         }
 
-        if ($request->has('to_date') && $request->to_date != '') {
+        if ($request->has('to_date') && $request->to_date !== '') {
             $trans += [":to_date_condition" => "<="];
         } else {
             $trans += [":to_date_condition" => "<>"];
         }
 
-        if ($request->has('position') && $request->position != '') {
+        if ($request->has('position') && $request->position !== '') {
             $trans += [":position_condition" => "="];
         } else {
             $trans += [":position_condition" => "<>"];
@@ -75,76 +83,65 @@ class ExportController extends ApiController
                 $trans[":" . $item] = "''";
             }
         }
+
         $tring_query = strtr($export_query->query, $trans);
         try {
             $query = DB::select($tring_query);
         } catch (Exception $e) {
             throw new Exception($e);
         }
-        if ($query == null) {
+        if ($query === null) {
             throw new Exception("Dữ liệu không tồn tại");
         }
         $label = "export_" . $slug . "_" . date('Y_m_d');
         return Excel::download(new Export($query), $label . '.xlsx');
     }
+
     public function exportContactForm(Request $request)
     {
-        if (config('export_query.auth_middleware.admin.middleware') !== '') {
-            $user = $this->getAuthenticatedUser();
-            if (Gate::forUser($user)->denies('view', $this->entity)) {
-                throw new PermissionDeniedException();
-            }
-        }
-        if ($request->has('slug')) {
-            $query = $this->repository->getQuery(['slug' => $request->slug])->first();
-            $contact_form_id = DB::table('contact_forms')->where('slug', $request->slug)->first()->id;
-            if (!empty($query)) {
-                $data_request = array_merge($request->all(), ['contact_form_id' => $contact_form_id]);
-                $trans = [];
-                if ($request->has('status') && $request->status != '') {
-                    $trans += [":status_condition" => "="];
-                } else {
-                    $trans += [":status_condition" => "<>"];
-                }
-
-                if ($request->has('from_date') && $request->from_date != '') {
-                    $trans += [":from_date_condition" => ">="];
-                } else {
-                    $trans += [":from_date_condition" => "<>"];
-                }
-
-                if ($request->has('to_date') && $request->to_date != '') {
-                    $trans += [":to_date_condition" => "<="];
-                } else {
-                    $trans += [":to_date_condition" => "<>"];
-                }
-
-                if ($request->has('position') && $request->position != '') {
-                    $trans += [":position_condition" => "="];
-                } else {
-                    $trans += [":position_condition" => "<>"];
-                }
-                foreach ($data_request as $item => $val) {
-                    if ($val != null) {
-                        $trans[":" . $item] = $val;
-                    } else {
-                        $trans[":" . $item] = "0";
-                    }
-                }
-                $tring_query = strtr($query->query, $trans);
+        $this->authorize();
+        $this->validator->isValid($request->all(), 'RULE_EXPORT');
+        $query = $this->repository->getQuery(['slug' => $request->slug])->first();
+        $contact_form_id = DB::table('contact_forms')->where('slug', $request->slug)->first()->id;
+        if (!empty($query)) {
+            $data_request = array_merge($request->all(), ['contact_form_id' => $contact_form_id]);
+            $trans = [];
+            if ($request->has('status') && $request->status !== '') {
+                $trans += [":status_condition" => "="];
             } else {
-                $tring_query = "SELECT * FROM contact_form_values where `contact_form_id` = $contact_form_id";
+                $trans += [":status_condition" => "<>"];
+                $data_request['status'] = 0;
             }
 
-        }
+            if ($request->has('from_date') && $request->from_date !== '') {
+                $trans += [":from_date_condition" => ">="];
+            } else {
+                $trans += [":from_date_condition" => "<>"];
+                $data_request['from_date'] = '1999-02-01';
+            }
 
+            if ($request->has('to_date') && $request->to_date !== '') {
+                $trans += [":to_date_condition" => "<="];
+            } else {
+                $trans += [":to_date_condition" => "<>"];
+                $data_request['to_date'] = '1999-02-01';
+            }
+            foreach ($data_request as $item => $val) {
+                if ($val !== null) {
+                    $trans[":" . $item] = $val;
+                }
+            }
+            $tring_query = strtr($query->query, $trans);
+        } else {
+            $tring_query = "SELECT * FROM contact_form_values where `contact_form_id` = $contact_form_id";
+        }
         try {
             $query = DB::select($tring_query);
 
         } catch (Exception $e) {
             throw new Exception($e);
         }
-        if ($query == null) {
+        if ($query === null) {
             throw new Exception("Dữ liệu không tồn tại");
         }
         $label = "export_" . $request->slug . "_" . date('Y_m_d');
