@@ -100,7 +100,7 @@ class ExportController extends ApiController
     public function exportContactForm(Request $request)
     {
         $this->authorize();
-        $this->validator->isValid($request->all(), 'RULE_EXPORT');
+        $this->validator->isValid($request->all(), 'RULE_EXPORT_CONTACT');
         $query = $this->repository->getQuery(['slug' => $request->slug])->first();
         $contact_form_id = DB::table('contact_forms')->where('slug', $request->slug)->first()->id;
         if (!empty($query)) {
